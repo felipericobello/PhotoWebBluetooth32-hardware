@@ -32,7 +32,7 @@ void setup()
   Serial.begin(115200);
   Gate.PinSetGate();
 }
-  
+
 void loop() 
 {
   // If start button pressed, calls Gate.InitPhotogate();

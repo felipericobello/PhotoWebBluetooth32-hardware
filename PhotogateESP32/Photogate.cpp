@@ -21,8 +21,8 @@ Photogate::~Photogate()
 void Photogate::PinSetGate()
 {
   for(int index = 0; index < 6; index++) {pinMode(_gate[index], INPUT_PULLUP);} // Change INPUT_PULLUP to INPUT later, check results.
-  // INPUT_PULLUP: 4096 when no light is detected (must use a resistor connected to VCC, otherwise it might not work if not using devboards)
-  // INPUT: 4096 when all light is detected
+  // INPUT_PULLUP: 4095 when no light is detected (must use a resistor connected to VCC, otherwise it might not work if not using devboards)
+  // INPUT: 4095 when all light is detected
 }
 
 
@@ -35,14 +35,21 @@ void Photogate::InitPhotogate() //Called when init button is pressed.
 
 void Photogate::OnUpdate() // If read starts, should use this function to get time and analog data. (if using lm393, should get digital data).
 {
-  unsigned int t_Read[s_gateSize] = {0};
 
   _TimeStamps->SetTime();
   while(Serial.available() == 0)
   {
+    unsigned int t_Read[s_gateSize] = {0};
+    bool rise[s_gateSize] = {false};
+    bool fall[s_gateSize] = {false};
+
     for(int index = 0; index<s_gateSize; index++)
     {
       t_Read[index] = _Channel[index]->Read();
+
+      rise[index] = _Channel[index]->IsRising();
+      fall[index] = _Channel[index]->IsFalling();
+      
       //t_Read[index] = analogRead(_gate[index]);
     }
 
@@ -51,15 +58,25 @@ void Photogate::OnUpdate() // If read starts, should use this function to get ti
     for(int index = 0; index<s_gateSize; index++)
     {
       //Serial.write(t_Read[index]); // Writes analog reads on serial
-      Serial.print("Read Analog Port "); Serial.print(index); Serial.print(": ");
-      Serial.println(t_Read[index]);
+      //Serial.print("Read Analog Port: "); Serial.print(index); Serial.print(t_Read[index]); Serial.print(",");
+
+
+      // char strBuf[50];
+      // sprintf(strBuf, "AnalogPort %d: ", index);
+      // Serial.print(strBuf); Serial.print(t_Read[index]); Serial.print(",");
+      
     }
+
+    // Channel 0
+    unsigned int Channel_0 = t_Read[0];
+    Serial.print("Channel0:"); Serial.println(Channel_0);
+
 
     unsigned long t_dTime = _TimeStamps->GetDeltaTime();
     //Serial.write(t_dTime); // Writes deltaTime on serial
-    Serial.println(t_dTime);
+    //Serial.print("TimeStamp:"); Serial.print(t_dTime); Serial.println("us");
     
-    delay(1000); // debug purposes.
+    delay(50); // debug purposes.
   }
 }
 

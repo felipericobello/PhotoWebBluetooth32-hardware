@@ -1,6 +1,10 @@
 #ifndef PHOTOGATE_H
 #define PHOTOGATE_H
 
+/*
+Classe de controle das funções do photogate. Reponsável por juntar os recursos envolvendo canais, temporizadores, webserver etc.
+*/
+
 #include <Arduino.h>
 #include "Timestamps.h"
 #include "Channel.h"
@@ -17,7 +21,7 @@ public:
 
 public:
   inline int GetGateSize() {return _gateSize;}
-  inline int GetGate(int index) {return _gate[index-1];}
+  inline int GetGate(int index) {return _gate[index];} // 0 to n
   inline bool IsRunning() {return _isRunning;}
 
 public:
