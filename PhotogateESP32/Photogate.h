@@ -33,7 +33,7 @@ private:
   bool _isRunning;
 
 private: //static allocations
-  static const int s_gateSize = 6; // "As a result, the declaration of a static data member is not considered a definition. The data member is declared in class scope, but definition is performed at file scope."
+  static const int s_gateSize = 1; // "As a result, the declaration of a static data member is not considered a definition. The data member is declared in class scope, but definition is performed at file scope."
 
 private: // plugins
   TimeStamps* _TimeStamps;

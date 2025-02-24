@@ -1,22 +1,23 @@
 #import "Channel.h"
 
-Channel::Channel(int index, int pin) : _channelIndex(index), _pin(pin), _refLevel(REF_LEVEL), _up(true), _down(false)
+Channel::Channel(int index, int pin) : _channelIndex(index), _pin(pin), _refLevel(REF_LEVEL), _up(true), _down(true), _getStampUP(false), _getStampDOWN(false), _signalState(false)
 {
 }
 
 unsigned int Channel::Read()
 {
   unsigned int read = analogRead(_pin);
-  if(read > _refLevel and _rise == false)
+
+  if(read > _refLevel && !_signalState && _up)
   {
-    _rise = true;
-    _fall = false;
+    _signalState = true;
+    _getStampUP = true;
   }
 
-  if(read > _refLevel and _fall == false)
+  if(read < _refLevel && _signalState && _down)
   {
-    _rise = false;
-    _fall = true;
+    _signalState = false;
+    _getStampDOWN = true;
   }
 
   return read;

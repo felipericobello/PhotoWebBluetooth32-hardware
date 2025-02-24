@@ -1,2 +1,2 @@
-# photogate-esp32 UFSCar - CCA
+# photogate-esp32
 Photogate using esp32 as a timer and webserver. 

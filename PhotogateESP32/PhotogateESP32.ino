@@ -12,7 +12,9 @@
 #include "Photogate.h"
 
 // Photogate pinout.
-const unsigned int gate[6] = {34, 35, 32, 33, 25, 26}; // ESP-WROOM-32 GPIO PINOUT. If gate size changed, must change s_gateSize due to static allocation.
+//must change s_gateSize due to static allocation on module changes!!!!
+//const unsigned int gate[6] = {34, 35, 32, 33, 25, 26}; // ESP-WROOM-32 GPIO PINOUT. If gate size changed, must change s_gateSize due to static allocation.
+const unsigned int gate[4] = {0, 1, 2, 3}; // ESP32-C3 SuperMini. *CHIP HAS A FAILURE THAT A5 (GPIO5) CAN'T BE USED WITH OTHERS ANALOG PORTS!
 Photogate Gate(gate);
 
 // Add this to Web class later.

@@ -15,12 +15,13 @@ Photogate::Photogate(const unsigned int* gate) : _gate(gate), _gateSize(s_gateSi
 
 Photogate::~Photogate()
 {
+  //delete _Channel;
 }
 
 
 void Photogate::PinSetGate()
 {
-  for(int index = 0; index < 6; index++) {pinMode(_gate[index], INPUT_PULLUP);} // Change INPUT_PULLUP to INPUT later, check results.
+  for(int index = 0; index < 6; index++) {pinMode(_gate[index], INPUT);} // Change INPUT_PULLUP to INPUT later, check results.
   // INPUT_PULLUP: 4095 when no light is detected (must use a resistor connected to VCC, otherwise it might not work if not using devboards)
   // INPUT: 4095 when all light is detected
 }
@@ -37,20 +38,34 @@ void Photogate::OnUpdate() // If read starts, should use this function to get ti
 {
 
   _TimeStamps->SetTime();
+  unsigned long riseTime[s_gateSize] = {0};
+  unsigned long fallTime[s_gateSize] = {0};
+  bool rise[s_gateSize] = {false};
+  bool fall[s_gateSize] = {false};
+  unsigned int t_Read[s_gateSize] = {0};
+
   while(Serial.available() == 0)
   {
-    unsigned int t_Read[s_gateSize] = {0};
-    bool rise[s_gateSize] = {false};
-    bool fall[s_gateSize] = {false};
 
     for(int index = 0; index<s_gateSize; index++)
     {
       t_Read[index] = _Channel[index]->Read();
+      if(_Channel[index]->ShouldGetTimeStampUP())
+      {
+        _Channel[index]->SetStampUP(false);
 
-      rise[index] = _Channel[index]->IsRising();
-      fall[index] = _Channel[index]->IsFalling();
-      
-      //t_Read[index] = analogRead(_gate[index]);
+        riseTime[index] = _TimeStamps->GetDeltaTime();
+        //Serial.print("Rise time:"); Serial.println(riseTime[index]);
+      }
+
+      if(_Channel[index]->ShouldGetTimeStampDOWN())
+      {
+        _Channel[index]->SetStampDOWN(false);
+
+        fallTime[index] = _TimeStamps->GetDeltaTime();
+        //Serial.print("Fall time:"); Serial.println(fallTime[index]);
+
+      }
     }
 
     _TimeStamps->DeltaTime();
@@ -69,14 +84,14 @@ void Photogate::OnUpdate() // If read starts, should use this function to get ti
 
     // Channel 0
     unsigned int Channel_0 = t_Read[0];
-    Serial.print("Channel0:"); Serial.println(Channel_0);
+    Serial.print("Channel_0:"); Serial.println(Channel_0);
 
 
-    unsigned long t_dTime = _TimeStamps->GetDeltaTime();
+    //unsigned long t_dTime = _TimeStamps->GetDeltaTime();
     //Serial.write(t_dTime); // Writes deltaTime on serial
     //Serial.print("TimeStamp:"); Serial.print(t_dTime); Serial.println("us");
     
-    delay(50); // debug purposes.
+    delay(10); // debug purposes.
   }
 }
 
