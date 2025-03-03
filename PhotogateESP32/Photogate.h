@@ -8,6 +8,14 @@ Classe de controle das funções do photogate. Reponsável por juntar os recurso
 #include <Arduino.h>
 #include "Timestamps.h"
 #include "Channel.h"
+#include "Display.h"
+
+
+
+void SetDisplay();
+
+// ENDIF OLED SETUP
+
 
 class Photogate
 {
@@ -17,6 +25,7 @@ public:
   ~Photogate();
   void PinSetGate();
   void InitPhotogate();
+  void InitOLED();
   void OnUpdate();
 
 public:
@@ -33,11 +42,11 @@ private:
   bool _isRunning;
 
 private: //static allocations
-  static const int s_gateSize = 1; // "As a result, the declaration of a static data member is not considered a definition. The data member is declared in class scope, but definition is performed at file scope."
-
+  static const int s_gateSize = 4; // "As a result, the declaration of a static data member is not considered a definition. The data member is declared in class scope, but definition is performed at file scope."
 private: // plugins
   TimeStamps* _TimeStamps;
   Channel* _Channel[s_gateSize]; // Ideally, I would like to use std::vector<> here, but that could cause some memory issues in microcontrollers, as stack overflow.
+  Adafruit_SSD1306 OLED; 
 };
 
 

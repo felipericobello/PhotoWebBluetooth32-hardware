@@ -33,6 +33,7 @@ void setup()
 {
   Serial.begin(115200);
   Gate.PinSetGate();
+  Gate.InitOLED();
 }
   
 void loop() 
@@ -45,5 +46,3 @@ void loop()
     Gate.OnUpdate();
   }
 }
-
-
