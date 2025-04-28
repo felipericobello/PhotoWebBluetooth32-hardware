@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-Este projeto demonstra um sistema para adquirir dados de até seis sensores photogate analógicos em alta velocidade usando um microcontrolador ESP32. Os dados são armazenados temporariamente (buffer) localmente no ESP32 e, em seguida, transmitidos em blocos via WebSocket para uma aplicação web simples para visualização em tempo real usando Chart.js.
+Esta é uma implementação paralela ao projeto principal que testa um sistema para adquirir dados de até seis sensores photogate analógicos em alta velocidade usando um microcontrolador ESP32. Os dados são armazenados temporariamente (buffer) localmente no ESP32 e, em seguida, transmitidos em blocos via WebSocket para uma aplicação web simples para visualização em tempo real usando Chart.js.
 
 O objetivo principal é explorar a taxa de amostragem máxima alcançável, mantendo uma transmissão de dados confiável através de uma conexão WiFi local (ESP32 atuando como Ponto de Acesso). Ele se concentra em técnicas de buffering para desacoplar o processo de amostragem de alta frequência do processo potencialmente mais lento de transmissão pela rede.
 
