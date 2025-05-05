@@ -359,7 +359,7 @@ static void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *clien
  */
 void initWiFiWebSocketServer(const char *ssid, const char *password, 
                              VariableConfig *appVariables, int appNumVariables,
-                             AsyncWebServerRequest_Callback defaultRouteHandler) {
+                             ArRequestHandlerFunction defaultRouteHandler) {
 
   // Store references to the application's variables.
   _variables = appVariables;

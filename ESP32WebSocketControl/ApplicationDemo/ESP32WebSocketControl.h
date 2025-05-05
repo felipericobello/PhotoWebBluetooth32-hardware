@@ -76,7 +76,7 @@ void initWiFiWebSocketServer(
     const char *password, 
     VariableConfig *appVariables,
     int appNumVariables,
-    AsyncWebServerRequest_Callback defaultRouteHandler = nullptr
+    ArRequestHandlerFunction defaultRouteHandler = nullptr
 );
 
 /**
