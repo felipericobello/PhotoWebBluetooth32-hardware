@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Controle & Stream</title>
+
+    <!-- Pico.css Framework via CDN (Estilo minimalista) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+
+    <!-- Estilos CSS customizados mínimos -->
+    <style>
+        /* Espaçamento geral e margens */
+        body { 
+            padding-top: 1.5rem; 
+            padding-bottom: 3rem; 
+        }
+        main.container > *:not(:last-child) { 
+            margin-bottom: 2rem; /* Espaço entre seções */
+        }
+        /* Status da Conexão */
+        #connectionStatus { 
+            font-weight: bold; 
+            margin-bottom: 0.5em; 
+            padding: 0.5em;
+            border-radius: var(--pico-border-radius);
+            text-align: center;
+        }
+        /* Tabela de Variáveis */
+        table input[type="text"], 
+        table input[type="number"], 
+        table button { 
+            margin-bottom: 0; /* Remove margem padrão dentro da tabela */
+        }
+        .variable-actions { 
+            display: flex;          /* Alinha input e botões lado a lado */
+            gap: 0.5rem;          /* Espaço entre elementos de ação */
+            align-items: center;  /* Alinha verticalmente */
+            min-width: 280px;     /* Garante espaço mínimo para os controles */
+        }
+        .variable-actions input { 
+            flex-grow: 1;         /* Input ocupa o espaço restante */
+        }
+        /* Seção de Stream */
+        #streamStatusDisplay { 
+            display: block; 
+            margin-top: 0.75em; 
+            font-size: 0.9em;
+            color: var(--pico-muted-color); /* Cor suave para o status */
+        }
+        #binaryDataLogArea { 
+            max-height: 250px;      /* Altura máxima antes de rolar */
+            overflow-y: auto;       /* Adiciona barra de rolagem vertical */
+            background: #f7f8fa;    /* Fundo sutilmente diferente */
+            padding: 1em;           /* Espaçamento interno */
+            margin-top: 1em;        /* Espaço acima do log */
+            border: 1px solid var(--pico-form-element-border-color); 
+            border-radius: var(--pico-border-radius);
+            font-family: var(--pico-font-family-monospace); /* Fonte monoespaçada */
+            font-size: 0.8em;       /* Tamanho de fonte menor para o log */
+            line-height: 1.5;       /* Espaçamento entre linhas */
+            white-space: pre;       /* Mantém espaços e quebras de linha */
+            color: var(--pico-secondary-color); /* Cor do texto do log */
+        }
+        /* Cabeçalhos das seções */
+         figure > header, article > header {
+            font-size: 1.15em;
+            font-weight: bold;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid var(--pico-muted-border-color);
+            margin-bottom: 1.2rem;
+        }
+        /* Indicador visual de ocupado (aria-busy) */
+        button[aria-busy="true"] {
+            color: transparent !important; /* Esconde texto durante 'busy' */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Container Principal -->
+    <main class="container">
+
+        <!-- Título da Página -->
+        <h1>ESP32 Controle & Stream</h1>
+
+        <!-- Status da Conexão WebSocket -->
+        <div id="connectionStatus">Conectando...</div>
+
+        <!-- Seção: Controle de Streaming de Dados -->
+        <article>
+            <header>Leitura Contínua (Real-Time Stream)</header>
+            <!-- Grid para botões Start/Stop -->
+            <div class="grid">
+                <button id="startStreamButton" aria-busy="false">Iniciar Stream</button>
+                <button id="stopStreamButton" class="secondary" aria-busy="false" disabled>Parar Stream</button>
+            </div>
+            <!-- Exibição do status do stream e contador -->
+            <small id="streamStatusDisplay">Stream parado.</small>
+            <!-- Área para exibir dados binários recebidos (log) -->
+            <pre id="binaryDataLogArea">(Log de dados do stream aparecerá aqui)</pre>
+        </article>
+
+        <!-- Seção: Variáveis Configuráveis (Get/Set) -->
+        <figure>
+            <header>Variáveis Configuráveis (Get/Set)</header>
+            <!-- Div para permitir rolagem horizontal em telas pequenas -->
+            <div class="overflow-auto"> 
+                <table role="grid">
+                    <thead>
+                        <tr>
+                            <th scope="col">Variável</th>
+                            <th scope="col">Valor Atual</th>
+                            <th scope="col">Tipo (JS)</th>
+                            <th scope="col">Ações (Get/Set)</th> 
+                        </tr>
+                    </thead>
+                    <tbody id="variablesTableBody">
+                        <!-- Linhas da tabela serão preenchidas dinamicamente -->
+                        <tr><td colspan="4" style="text-align: center; color: grey;">Aguardando dados do ESP32...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </figure>
+
+        <!-- Rodapé Informativo -->
+        <footer>
+            <hr>
+            <small>Conecte-se à rede Wi-Fi do ESP32 (SSID: ESP32_Control_AP) e recarregue a página se necessário.</small>
+        </footer>
+
+    </main> <!-- Fim do container principal -->
+
+    <!-- Código JavaScript -->
+    <script>
+        /** 
+         * Script do Cliente WebSocket para interagir com o ESP32 
+         * (Compatível com ApplicationDemo.ino e ESP32WebSocketControl)
+         */
+
+        // --- Configuração Essencial ---
+        const ESP32_STATIC_IP = "192.168.5.1"; // IP Fixo definido no ESP32WebSocketControl.cpp
+        const WEBSOCKET_URL = `ws://${ESP32_STATIC_IP}/ws`;
+
+        // --- Constantes para Processamento Binário (devem bater com a struct C++) ---
+        const SENSOR_PACKET_BYTES = 16; // Tamanho total da struct SensorDataPacket (6*uint16 + 1*uint32)
+        const SENSORS_PER_PACKET = 6;   // Número de leituras de sensor por pacote
+
+        // --- Referências aos Elementos do DOM ---
+        const connectionStatusEl = document.getElementById('connectionStatus');
+        const variablesTableBodyEl = document.getElementById('variablesTableBody');
+        const startStreamBtnEl = document.getElementById('startStreamButton');
+        const stopStreamBtnEl = document.getElementById('stopStreamButton');
+        const streamStatusDisplayEl = document.getElementById('streamStatusDisplay');
+        const binaryDataLogAreaEl = document.getElementById('binaryDataLogArea');
+
+        // --- Variáveis de Estado do Cliente ---
+        let webSocketInstance;         // Armazena a instância do objeto WebSocket
+        let configurableVariablesData = {}; // Objeto para guardar os valores das variáveis Get/Set
+        let isClientStreaming = false; // Flag para indicar se o cliente solicitou/acredita que o stream está ativo
+        let binaryChunkCounter = 0;    // Contador de chunks (mensagens binárias) recebidos
+
+        // --- Funções do WebSocket ---
+
+        /**
+         * Estabelece a conexão WebSocket com o ESP32.
+         */
+        function connectWebSocket() {
+            console.log(`Tentando conectar ao WebSocket: ${WEBSOCKET_URL}`);
+            updateConnectionStatus('Conectando...', 'orange');
+            startStreamBtnEl.disabled = true; // Desabilita controles durante a conexão
+            stopStreamBtnEl.disabled = true;
+
+            // Cria a instância do WebSocket
+            webSocketInstance = new WebSocket(WEBSOCKET_URL);
+
+            // Define o tipo de dados binários esperado como ArrayBuffer
+            webSocketInstance.binaryType = "arraybuffer"; 
+
+            // Callback: Conexão Aberta
+            webSocketInstance.onopen = () => {
+                console.log('WebSocket Conectado!');
+                updateConnectionStatus('Conectado ao ESP32', 'green');
+                variablesTableBodyEl.innerHTML = ''; // Limpa tabela placeholder
+                binaryChunkCounter = 0;
+                isClientStreaming = false; // Assume stream parado na conexão
+                updateStreamControlUI();   // Habilita/desabilita botões corretamente
+                // Opcional: Solicitar valores iniciais das variáveis Get/Set
+                // sendGetVariableRequest('led_intensity'); 
+                // sendGetVariableRequest('update_interval'); 
+            };
+
+            // Callback: Conexão Fechada
+            webSocketInstance.onclose = (event) => {
+                console.log(`WebSocket Desconectado. Código: ${event.code}, Motivo: ${event.reason || 'N/A'}`);
+                updateConnectionStatus(`Desconectado (Código: ${event.code})`, 'red');
+                variablesTableBodyEl.innerHTML = '<tr style="color: red;"><td colspan="4">Conexão perdida. Recarregue a página.</td></tr>';
+                isClientStreaming = false;
+                updateStreamControlUI(); // Garante botões desabilitados
+            };
+
+            // Callback: Erro na Conexão
+            webSocketInstance.onerror = (error) => {
+                console.error('WebSocket Erro:', error);
+                updateConnectionStatus('Erro na conexão WebSocket', 'red');
+                variablesTableBodyEl.innerHTML = '<tr style="color: red;"><td colspan="4">Erro de conexão. Verifique o IP e o ESP32.</td></tr>';
+                isClientStreaming = false;
+                updateStreamControlUI();
+            };
+
+            // Callback: Mensagem Recebida do Servidor
+            webSocketInstance.onmessage = (event) => {
+                // Verifica o tipo de dado recebido (Texto JSON ou Binário ArrayBuffer)
+                if (event.data instanceof ArrayBuffer) {
+                    binaryChunkCounter++; // Incrementa contador de chunks
+                    processBinaryData(event.data); // Processa os dados binários
+                    // Atualiza display de status do stream (apenas contador para eficiência)
+                    streamStatusDisplayEl.textContent = `Stream ativo. Chunks recebidos: ${binaryChunkCounter}`;
+
+                } else if (typeof event.data === 'string') {
+                    // Tenta processar como mensagem JSON
+                    try {
+                        const message = JSON.parse(event.data);
+                        console.log('JSON Recebido:', message); 
+                        
+                        // Verifica se é uma mensagem de Status/Confirmação do ESP32
+                        if (message.status) {
+                           handleServerStatusMessage(message);
+                        }
+                        // Verifica se é uma atualização de variável Get/Set
+                        else if (message.variable !== undefined && message.value !== undefined) {
+                           handleVariableUpdateMessage(message);
+                        } else {
+                            console.warn("JSON recebido em formato não reconhecido:", message);
+                        }
+                    } catch (e) {
+                        console.error('Erro ao processar mensagem de texto (JSON inválido?):', e, event.data);
+                        updateConnectionStatus('Erro: Recebido dado de texto inválido', 'orange');
+                    }
+                } else {
+                     // Tipo de dado inesperado
+                     console.warn("Tipo de dado WebSocket inesperado recebido:", typeof event.data, event.data);
+                }
+            };
+        }
+
+        // --- Funções de Manipulação de Mensagens Recebidas ---
+
+        /**
+         * Processa mensagens de status enviadas pelo servidor ESP32.
+         * Atualiza o estado do stream no cliente se a mensagem confirmar start/stop.
+         * @param {object} message Objeto JSON com 'status' e 'message'.
+         */
+        function handleServerStatusMessage(message) {
+            console.log(`Status ESP32 [${message.status}]: ${message.message}`);
+            // Exibe alerta simples (pode ser substituído por um display mais sofisticado)
+            // alert(`ESP32 [${message.status}]: ${message.message}`);
+
+            // Atualiza o estado de streaming do cliente baseado na confirmação do servidor
+            const msgText = message.message.toLowerCase();
+            if (msgText.includes("stream iniciado") || msgText.includes("stream já estava ativo")) {
+                isClientStreaming = true;
+                if (msgText.includes("stream iniciado")) binaryChunkCounter = 0; // Reseta contador se iniciou agora
+            } else if (msgText.includes("stream parado") || msgText.includes("stream já estava parado")) {
+                isClientStreaming = false;
+            }
+            updateStreamControlUI(); // Reflete o estado confirmado na UI
+
+            // Se foi um erro ao tentar definir uma variável, re-renderiza a tabela
+            if(message.status === 'error' && msgText.includes('definir valor')) {
+                 renderVariablesTable(); 
+            }
+        }
+
+        /**
+         * Processa mensagens de atualização de variáveis Get/Set.
+         * Armazena o novo valor e atualiza a tabela HTML.
+         * @param {object} message Objeto JSON com 'variable' e 'value'.
+         */
+        function handleVariableUpdateMessage(message) {
+             configurableVariablesData[message.variable] = message.value; // Armazena o valor recebido
+             renderVariablesTable(); // Atualiza a tabela na interface
+        }
+
+        /**
+         * Processa os dados binários recebidos (ArrayBuffer).
+         * Decodifica os pacotes SensorDataPacket e atualiza a área de log.
+         * @param {ArrayBuffer} arrayBuffer Dados binários brutos.
+         */
+        function processBinaryData(arrayBuffer) {
+            // Verifica se o tamanho do buffer recebido é válido
+            if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength % SENSOR_PACKET_BYTES !== 0) {
+                console.error(`Erro Binário: Tamanho do buffer (${arrayBuffer.byteLength}) inválido ou não múltiplo de ${SENSOR_PACKET_BYTES}.`);
+                logToBinaryArea(`[Erro: Buffer binário inválido recebido! Tamanho: ${arrayBuffer.byteLength}]\n`);
+                return;
+            }
+
+            const numPacketsInChunk = arrayBuffer.byteLength / SENSOR_PACKET_BYTES;
+            // Usa DataView para ler tipos específicos (uint16, uint32) com controle de endianness
+            const dataView = new DataView(arrayBuffer);
+            let chunkLogContent = ""; // String para acumular o log deste chunk
+
+            // Itera por cada pacote SensorDataPacket dentro do chunk recebido
+            for (let i = 0; i < numPacketsInChunk; i++) {
+                const offset = i * SENSOR_PACKET_BYTES; // Calcula o início do pacote atual no buffer
+                const sensorReadings = []; // Array para guardar as 6 leituras do pacote
+
+                // Lê as 6 leituras uint16 (Little Endian = true)
+                for(let s = 0; s < SENSORS_PER_PACKET; s++) {
+                    sensorReadings.push(dataView.getUint16(offset + (s * 2), true)); 
+                }
+                // Lê o timestamp uint32 (Little Endian = true)
+                const timeMs = dataView.getUint32(offset + (SENSORS_PER_PACKET * 2), true); 
+
+                // ---- Processamento/Exibição ----
+                // Para evitar poluir o log, mostra apenas a primeira e última amostra do chunk
+                if (i === 0 || i === numPacketsInChunk - 1) { 
+                   chunkLogContent += ` C${binaryChunkCounter} P${i}: [${sensorReadings.join(', ')}] @ ${timeMs}ms\n`;
+                } else if (i === 1 && numPacketsInChunk > 2) { // Indica amostras omitidas
+                    chunkLogContent += ` C${binaryChunkCounter} P${i}: ... (${numPacketsInChunk - 2} amostras omitidas) ...\n`;
+                }
+                
+                // TODO: Aqui você adicionaria a lógica para usar os dados, 
+                // por exemplo, enviá-los para uma biblioteca de gráficos.
+                // plotData(sensorReadings, timeMs); 
+            }
+            // Adiciona o log formatado deste chunk à área de log na página
+            logToBinaryArea(chunkLogContent); 
+        }
+
+        // --- Funções de Atualização da Interface (UI) ---
+
+        /**
+         * Atualiza o elemento de status da conexão com mensagem e cor.
+         * @param {string} text Texto a ser exibido.
+         * @param {string} color Cor de fundo ('green', 'orange', 'red', ou cor CSS).
+         */
+        function updateConnectionStatus(text, color = 'grey') {
+            connectionStatusEl.textContent = text;
+            connectionStatusEl.style.backgroundColor = 
+                color === 'green' ? '#d1e7dd' : 
+                color === 'red' ? '#f8d7da' : 
+                color === 'orange' ? '#fff3cd' : 
+                '#e2e3e5'; // Cor padrão (cinza)
+             connectionStatusEl.style.color = 
+                color === 'green' ? '#0f5132' : 
+                color === 'red' ? '#842029' : 
+                color === 'orange' ? '#664d03' : 
+                '#41464b'; 
+        }
+
+        /**
+         * (Re)constrói a tabela HTML com as variáveis configuráveis (Get/Set).
+         */
+        function renderVariablesTable() {
+            variablesTableBodyEl.innerHTML = ''; // Limpa conteúdo atual
+            const variableNames = Object.keys(configurableVariablesData).sort(); // Pega nomes ordenados
+
+            // Se não houver dados de variáveis ainda
+            if (variableNames.length === 0) {
+                 variablesTableBodyEl.innerHTML = '<tr><td colspan="4" style="text-align: center; color: grey;">Nenhuma variável recebida. Use "Get" ou aguarde atualizações.</td></tr>';
+                 return;
+            }
+
+            // Cria uma linha <tr> para cada variável
+            variableNames.forEach(varName => {
+                const varValue = configurableVariablesData[varName];
+                const varType = typeof varValue; // Tipo JavaScript (number, string, boolean)
+                
+                const row = variablesTableBodyEl.insertRow(); // Cria nova linha
+
+                // Célula 1: Nome da Variável
+                row.insertCell().textContent = varName; 
+
+                // Célula 2: Valor Atual (formatado)
+                const valueCell = row.insertCell(); 
+                valueCell.textContent = (varType === 'string') ? `"${varValue}"` : varValue; 
+                valueCell.style.wordBreak = 'break-all'; // Quebra strings longas
+
+                // Célula 3: Tipo JavaScript
+                row.insertCell().textContent = varType; 
+
+                // Célula 4: Ações (Botões Get/Set e Input)
+                const actionsCell = row.insertCell();
+                actionsCell.classList.add('variable-actions'); // Aplica classe para layout flex
+
+                // Input para novo valor
+                const input = document.createElement('input');
+                input.type = (varType === 'number') ? 'number' : 'text';
+                // Permite decimais para tipo 'number'
+                if (input.type === 'number') input.step = 'any'; 
+                input.id = `input-${varName}`; // ID único para o input
+                input.placeholder = `Novo valor`; // Placeholder
+                input.value = varValue; // Preenche com valor atual para facilitar edição
+
+                // Botão GET
+                const getButton = document.createElement('button');
+                getButton.textContent = 'Get';
+                getButton.classList.add('secondary', 'outline'); // Estilo Pico.css
+                // Define ação onclick para enviar requisição GET
+                getButton.onclick = () => sendGetVariableRequest(varName); 
+
+                // Botão SET
+                const setButton = document.createElement('button');
+                setButton.textContent = 'Set';
+                // Define ação onclick para enviar requisição SET
+                setButton.onclick = () => sendSetVariableRequest(varName); 
+
+                // Adiciona os elementos à célula de ações
+                actionsCell.appendChild(getButton);
+                actionsCell.appendChild(input);
+                actionsCell.appendChild(setButton);
+            });
+        }
+
+        /**
+         * Atualiza a interface de controle do stream (botões, status).
+         */
+        function updateStreamControlUI() {
+             // Atualiza o texto de status do stream
+             streamStatusDisplayEl.textContent = isClientStreaming 
+                 ? `Stream ativo. Chunks recebidos: ${binaryChunkCounter}` 
+                 : 'Stream parado.';
+             streamStatusDisplayEl.style.color = isClientStreaming ? 'var(--pico-color-green-600)' : 'var(--pico-muted-color)';
+
+             // Habilita/desabilita botões Start e Stop
+             startStreamBtnEl.disabled = isClientStreaming || !webSocketInstance || webSocketInstance.readyState !== WebSocket.OPEN;
+             stopStreamBtnEl.disabled = !isClientStreaming || !webSocketInstance || webSocketInstance.readyState !== WebSocket.OPEN;
+
+             // Atualiza atributo 'aria-busy' para feedback visual do Pico.css
+             startStreamBtnEl.setAttribute('aria-busy', isClientStreaming ? 'true' : 'false'); // Busy se estiver streamando (pois não pode clicar)
+             stopStreamBtnEl.setAttribute('aria-busy', !isClientStreaming ? 'true' : 'false'); // Busy se NÃO estiver streamando (pois não pode clicar)
+
+             // Limpa o log binário quando o stream para (ou na conexão inicial)
+             if (!isClientStreaming && binaryChunkCounter === 0) { 
+                 binaryDataLogAreaEl.textContent = "(Log de dados do stream aparecerá aqui)\n"; 
+             }
+        }
+
+        /**
+         * Adiciona uma linha de texto à área de log binário, mantendo um tamanho máximo.
+         * @param {string} text Texto a ser adicionado.
+         */
+        function logToBinaryArea(text) {
+            // Adiciona novo texto no topo, limita o tamanho total para performance
+            binaryDataLogAreaEl.textContent = text + binaryDataLogAreaEl.textContent.substring(0, 4000); 
+        }
+
+
+        // --- Funções de Envio de Mensagens WebSocket ---
+
+        /**
+         * Função auxiliar para enviar um objeto payload como JSON via WebSocket.
+         * @param {object} payload Objeto JavaScript a ser enviado.
+         */
+        function sendWebSocketPayload(payload) {
+             // Verifica se a conexão WebSocket está aberta
+             if (webSocketInstance && webSocketInstance.readyState === WebSocket.OPEN) {
+                const jsonPayload = JSON.stringify(payload); // Converte objeto para string JSON
+                console.log('Enviando:', jsonPayload);
+                webSocketInstance.send(jsonPayload); // Envia a string JSON
+             } else {
+                 // Alerta se a conexão não estiver pronta
+                 console.warn('WebSocket não está aberto. Não é possível enviar mensagem.');
+                 updateConnectionStatus('Erro: WebSocket desconectado', 'red');
+                 updateStreamControlUI(); // Garante que a UI reflita a desconexão
+             }
+        }
+
+        /** Envia uma requisição "get" para obter o valor de uma variável. */
+        function sendGetVariableRequest(variableName) { 
+            sendWebSocketPayload({ action: 'get', variable: variableName }); 
+        }
+
+        /** Envia uma requisição "set" para definir o valor de uma variável. */
+        function sendSetVariableRequest(variableName) {
+            // Encontra o elemento input correspondente
+            const inputElement = document.getElementById(`input-${variableName}`);
+            if (!inputElement) { 
+                console.error(`Elemento input não encontrado para: input-${variableName}`); 
+                return; 
+            }
+            
+            let valueToSend = inputElement.value; // Pega o valor do input (sempre string inicialmente)
+            const originalVarType = typeof configurableVariablesData[variableName]; // Pega o tipo original da variável
+
+            // Tenta converter para número se o tipo original era 'number'
+            // ou se o input é explicitamente do tipo 'number'.
+            if (originalVarType === 'number' || inputElement.type === 'number') {
+                const numericValue = Number(valueToSend);
+                // Verifica se a conversão foi bem-sucedida (não é NaN)
+                if (!isNaN(numericValue)) {
+                    valueToSend = numericValue; // Usa o valor numérico convertido
+                } else {
+                    // Se a conversão falhar, alerta o usuário e não envia
+                    alert(`Valor inválido ('${valueToSend}') para a variável numérica '${variableName}'. Por favor, insira um número válido.`); 
+                    return; 
+                }
+            }
+            // Envia o payload 'set' com o valor (original ou convertido)
+            sendWebSocketPayload({ action: 'set', variable: variableName, value: valueToSend });
+        }
+
+        /** Envia o comando "start_stream" para o ESP32. */
+        function sendStartStreamRequest() { 
+            sendWebSocketPayload({ action: 'start_stream' }); 
+            // Atualiza UI otimisticamente (será corrigida pela resposta do servidor se falhar)
+            isClientStreaming = true; 
+            binaryChunkCounter = 0; // Reseta contador
+            binaryDataLogAreaEl.textContent = "(Aguardando dados do stream...)\n"; // Limpa log
+            updateStreamControlUI();
+        }
+
+        /** Envia o comando "stop_stream" para o ESP32. */
+        function sendStopStreamRequest() { 
+            sendWebSocketPayload({ action: 'stop_stream' }); 
+            // Atualiza UI otimisticamente
+            isClientStreaming = false;
+            updateStreamControlUI();
+        }
+
+        // --- Inicialização do Script ---
+
+        // Adiciona um listener para executar o código quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Carregado. Iniciando WebSocket...');
+            connectWebSocket(); // Tenta conectar ao carregar a página
+
+            // Adiciona listeners de clique aos botões de controle de stream
+            startStreamBtnEl.addEventListener('click', sendStartStreamRequest);
+            stopStreamBtnEl.addEventListener('click', sendStopStreamRequest);
+        });
+
+    </script>
+</body>
+</html>
