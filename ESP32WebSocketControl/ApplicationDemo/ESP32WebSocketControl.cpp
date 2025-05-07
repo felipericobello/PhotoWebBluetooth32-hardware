@@ -359,79 +359,91 @@ static void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *clien
  */
 void initWiFiWebSocketServer(const char *ssid, const char *password, 
                              VariableConfig *appVariables, int appNumVariables,
-                             ArRequestHandlerFunction defaultRouteHandler) {
+                             ArRequestHandlerFunction defaultRouteHandler) { 
 
-  // Store references to the application's variables.
+  // Atribuição dos parâmetros aos membros estáticos primeiro
   _variables = appVariables;
   _numVariables = appNumVariables;
-  // Basic validation of the provided variable array.
-  if (!_variables || _numVariables <= 0) { 
-      Serial.println("CRITICAL ERROR: Invalid variable array provided to initWiFiWebSocketServer.");
-      // Consider halting or restarting if this occurs.
-      return; 
-  }
 
-  Serial.println("\nInitializing ESP32 WebSocket Control Library...");
+  Serial.println("\n--- [LIB_CTRL] initWiFiWebSocketServer: START ---"); 
+
+  // VERIFICAÇÃO IMEDIATA DOS PARÂMETROS RECEBIDOS
+  if (!_variables || _numVariables <= 0) { 
+      Serial.println("[LIB_CTRL] CRITICAL ERROR: Invalid variable array parameters received.");
+      Serial.printf("[LIB_CTRL] appVariables pointer: %p, appNumVariables: %d\n", _variables, _numVariables);
+      return; // Para a execução aqui se os parâmetros estiverem ruins
+  }
+  Serial.println("[LIB_CTRL] Variable array parameters check OK.");
+
+
+  // --- Configurar GPIO2 (LED_BUILTIN) explicitamente ANTES do WiFi ---
+  Serial.println("[LIB_CTRL] Explicitly setting GPIO2 (LED_BUILTIN) to OUTPUT LOW...");
+  #ifndef LED_BUILTIN 
+    #define LED_BUILTIN 2
+  #endif
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW); 
+  delay(50); 
+  Serial.println("[LIB_CTRL] GPIO2 state set.");
+  // -----------------------------------------------------------------------------------
+
+  // --- Resetar estado do WiFi ---
+  Serial.println("[LIB_CTRL] Attempting to reset WiFi state...");
+  WiFi.persistent(false); 
+  WiFi.disconnect(true);  
+  WiFi.mode(WIFI_OFF);    
+  delay(100);             
+  WiFi.mode(WIFI_AP);     
+  Serial.println("[LIB_CTRL] WiFi state reset, AP mode set.");
+  // ----------------------------------------------------
 
   // --- Configure Static IP for the Access Point ---
-  // Using a non-default IP can prevent conflicts if the ESP32 is also a client elsewhere.
-  IPAddress apIP(192, 168, 5, 1);      // The desired static IP for the ESP32 AP.
-  IPAddress gatewayIP(192, 168, 5, 1); // Gateway is the ESP32 itself in AP mode.
-  IPAddress subnetMask(255, 255, 255, 0); // Standard subnet mask.
+  IPAddress apIP(192, 168, 5, 1);      
+  IPAddress gatewayIP(192, 168, 5, 1); 
+  IPAddress subnetMask(255, 255, 255, 0); 
 
-  Serial.printf("Attempting to configure static AP IP: %s\n", apIP.toString().c_str());
-  // Apply the static IP configuration *before* starting the AP.
+  Serial.printf("[LIB_CTRL] Attempting to configure static AP IP: %s\n", apIP.toString().c_str());
   if (!WiFi.softAPConfig(apIP, gatewayIP, subnetMask)) {
-    Serial.println("ERROR: Failed to configure static AP IP address!");
-    // Continue with default IP or halt? For now, just log the error.
+    Serial.println("[LIB_CTRL] ERROR: Failed to configure static AP IP address!");
   } else {
-      Serial.println("Static AP IP configuration successful.");
+      Serial.println("[LIB_CTRL] Static AP IP configuration successful.");
   }
 
   // --- Start the WiFi Access Point ---
-  Serial.printf("Starting WiFi Access Point (SSID: %s)...\n", ssid);
-  // Start the AP using the provided SSID and password. It will use the static IP if configured.
+  Serial.printf("[LIB_CTRL] Starting WiFi Access Point (SSID: %s)...\n", ssid);
   bool apStarted = WiFi.softAP(ssid, password); 
-
+  // ... (resto da função como antes, incluindo a verificação do IP obtido) ...
   if (apStarted) {
-      Serial.println("Access Point started successfully.");
-      // Verify and print the actual IP address obtained.
+      Serial.println("[LIB_CTRL] Access Point started successfully.");
       IPAddress currentAPIP = WiFi.softAPIP();
-      Serial.print("--> ESP32 Access Point IP Address: "); 
+      Serial.print("[LIB_CTRL] --> ESP32 Access Point IP Address: "); 
       Serial.println(currentAPIP); 
-      // Warn if the actual IP doesn't match the configured static IP.
-      if (currentAPIP != apIP && WiFi.softAPIP() != IPAddress(192,168,4,1) /* Check against default too */ ) {
-          Serial.println("Warning: AP IP does not match configured static IP. Check for conflicts or config errors.");
-      }
+      // ... (resto da lógica de inicialização do servidor web e websocket)
   } else {
-      Serial.println("CRITICAL ERROR: Failed to start Access Point!");
-      // Halt or restart might be necessary here.
+      Serial.println("[LIB_CTRL] CRITICAL ERROR: Failed to start Access Point!");
       return; 
   }
 
-  // --- Configure WebSocket Server ---
-  // Register our event handler function to manage WebSocket events.
+  Serial.println("[LIB_CTRL] Configuring WebSocket server...");
   ws.onEvent(onWebSocketEvent); 
-  // Add the WebSocket handler to the main web server.
   server.addHandler(&ws);
-  Serial.println("WebSocket handler attached to /ws endpoint.");
+  Serial.println("[LIB_CTRL] WebSocket handler attached to /ws endpoint."); 
 
-  // --- Configure HTTP Server Root Route ---
-  // Use the provided handler or a default one for requests to "/".
+  Serial.println("[LIB_CTRL] Configuring HTTP root route...");
   if (defaultRouteHandler) { 
-      server.on("/", HTTP_GET, defaultRouteHandler);
-      Serial.println("Registered custom HTTP root route handler.");
+      server.on("/", HTTP_GET, defaultRouteHandler); 
+      Serial.println("[LIB_CTRL] Registered custom HTTP root route handler.");
   } else { 
-      // Default handler sends a simple text response.
       server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ 
           request->send(200, "text/plain", "ESP32 WebSocket Server Active. Connect to /ws"); 
       });
-      Serial.println("Registered default HTTP root route handler.");
+      Serial.println("[LIB_CTRL] Registered default HTTP root route handler.");
   }
 
-  // --- Start the Web Server ---
+  Serial.println("[LIB_CTRL] Starting HTTP server (server.begin())...");
   server.begin();
-  Serial.println("HTTP & WebSocket Server started.");
+  Serial.println("[LIB_CTRL] HTTP & WebSocket Server started.");
+  Serial.println("--- [LIB_CTRL] initWiFiWebSocketServer: COMPLETE ---"); 
 }
 
 /**

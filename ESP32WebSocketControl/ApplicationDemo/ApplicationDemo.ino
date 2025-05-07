@@ -107,38 +107,34 @@ void application_onStreamStop() {
 void setup() {
   // Start Serial communication for debugging and status messages
   Serial.begin(115200);
-  Serial.println("\n\n--- ESP32 Application Demo Starting ---");
+  delay(500); // Pequena pausa para garantir que o Serial esteja pronto
+  Serial.println("\n\n--- [APP_DEMO] Setup: START ---"); // << NOVO LOG
 
   // Configure the specified analog input pins
-  Serial.println("Configuring analog input pins...");
+  Serial.println("[APP_DEMO] Setup: Configuring analog pins..."); // << NOVO LOG
   pinMode(ANALOG_PIN_1, INPUT); 
   pinMode(ANALOG_PIN_2, INPUT); 
   pinMode(ANALOG_PIN_3, INPUT);
   pinMode(ANALOG_PIN_4, INPUT); 
   pinMode(ANALOG_PIN_5, INPUT); 
   pinMode(ANALOG_PIN_6, INPUT);
-  // Note: ADC resolution/attenuation can be set using analogReadResolution() 
-  // and analogSetAttenuation() if needed for specific sensors.
-
-  // Initialize the WebSocket Control Library
-  // This sets up WiFi AP, the web server, WebSocket endpoint, and internal handlers.
-  // It requires the WiFi credentials and the array of configurable variables.
-  Serial.println("Initializing WiFi AP and WebSocket Server...");
+  Serial.println("[APP_DEMO] Setup: Analog pins configured."); // << NOVO LOG
+  
+  Serial.println("[APP_DEMO] Setup: Calling initWiFiWebSocketServer..."); // << NOVO LOG
   initWiFiWebSocketServer(WIFI_SSID, WIFI_PASSWORD, configurableVariables, numConfigurableVariables); 
+  Serial.println("[APP_DEMO] Setup: initWiFiWebSocketServer CALL RETURNED."); // << NOVO LOG
 
-  // Register our application-specific stream control functions with the library
-  // The library will call these functions based on client commands ("start_stream", "stop_stream")
-  Serial.println("Registering stream control callbacks...");
+  Serial.println("[APP_DEMO] Setup: Calling setStreamCallbacks..."); // << NOVO LOG
   setStreamCallbacks(application_onStreamStart, application_onStreamStop);
+  Serial.println("[APP_DEMO] Setup: setStreamCallbacks CALL RETURNED."); // << NOVO LOG
 
-  // Print information about the streaming configuration
-  Serial.printf("Streaming Config: %d samples/chunk, %d us/sample interval.\n", 
+  Serial.printf("[APP_DEMO] Streaming Config: %d samples/chunk, %d us/sample interval.\n", 
                 SAMPLES_PER_CHUNK, SAMPLE_INTERVAL_US);
-  Serial.printf("Data Packet Size: %d bytes. Chunk Buffer Size: %d bytes.\n", 
+  Serial.printf("[APP_DEMO] Data Packet Size: %d bytes. Chunk Buffer Size: %d bytes.\n", 
                 PACKET_SIZE_BYTES, CHUNK_BUFFER_SIZE_BYTES);
 
-  Serial.println("--- Setup Complete ---");
-  Serial.println("Waiting for client connections...");
+  Serial.println("--- [APP_DEMO] Setup: COMPLETE ---"); // << NOVO LOG
+  Serial.println("[APP_DEMO] Waiting for client connections...");
 }
 
 
