@@ -10,8 +10,8 @@
 
 #include <Arduino.h>            // Base Arduino types (String, etc.)
 #include <WiFi.h>               // WiFi functions and types (IPAddress)
-#include <ESPAsyncWebServer.h>  // Async Web Server and WebSocket types
-#include <ArduinoJson.h>        // JSON handling
+#include <ESPAsyncWebServer.h>  // Async Web Server and WebSocket types (requires AsyncTCP dependency)
+#include <ArduinoJson.h>        // JSON handling library
 
 // --- Supported Variable Types ---
 
@@ -64,12 +64,13 @@ typedef void (*StreamControlCallback)();
  *        starts the AsyncWebServer, and sets up the WebSocket endpoint ("/ws").
  * 
  * @param ssid The desired network name (SSID) for the Access Point.
- * @param password The password for the Access Point (8+ characters recommended).
+ * @param password The password for the Access Point (8+ characters recommended, or nullptr for an open network).
  * @param appVariables Pointer to the application's array of VariableConfig structs.
  * @param appNumVariables The total number of elements in the appVariables array.
- * @param defaultRouteHandler (Optional) A callback function to handle HTTP GET 
- *                            requests to the root "/" path. If nullptr, a default 
- *                            "Server Active" message is sent.
+ * @param defaultRouteHandler (Optional) A callback function (of type ArRequestHandlerFunction) 
+ *                            to handle HTTP GET requests to the root "/" path. 
+ *                            If nullptr, a default "Server Active" message is sent.
+ *                            ArRequestHandlerFunction is defined in ESPAsyncWebServer.h.
  */
 void initWiFiWebSocketServer(
     const char *ssid, 
@@ -112,6 +113,5 @@ void broadcastBinaryData(const uint8_t* data, size_t len);
  *        manually if needed (e.g., periodically in the main loop if experiencing issues).
  */
 void cleanupWebSocketClients();
-
 
 #endif // ESP32_WEBSOCKET_CONTROL_H
