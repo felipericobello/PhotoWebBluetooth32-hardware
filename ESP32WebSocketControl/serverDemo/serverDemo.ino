@@ -1,5 +1,5 @@
 /**
- * @file ApplicationDemo.ino
+ * @file serverDemo.ino
  * @brief Example application demonstrating the use of ESP32WebSocketControl library.
  *        Implements both Get/Set variable control via JSON and high-frequency 
  *        binary data streaming of 6 analog inputs.
