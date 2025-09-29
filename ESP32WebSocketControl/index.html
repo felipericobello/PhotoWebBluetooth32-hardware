@@ -5,10 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Control & Stream</title>
+    <!-- PWA Manifest and Theme Color -->
+    <link rel="manifest" href="client/manifest.json">
+    <meta name="theme-color" content="#212936">
     <!-- Pico.css Framework via CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <!-- Custom CSS styles -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="client/css/styles.css">
 </head>
 
 <body>
@@ -62,6 +65,6 @@
 
     <!-- Import the main JavaScript module -->
     <!-- The 'type="module"' attribute is essential for ES6 modules -->
-    <script type="module" src="js/main.js"></script>
+    <script type="module" src="client/js/main.js"></script>
 </body>
 </html>

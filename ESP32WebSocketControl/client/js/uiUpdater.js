@@ -1,4 +1,4 @@
-// js/uiUpdater.js
+// client/js/uiUpdater.js
 import appState from './appState.js'; // May need state for some UI updates
 
 // --- DOM Element References (cached for performance) ---

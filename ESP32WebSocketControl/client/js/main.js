@@ -1,4 +1,4 @@
-// js/main.js
+// client/js/main.js
 
 /**
  * Main application script.
@@ -83,13 +83,13 @@ wsService.setOnServerStatus((message) => {
     const msgText = message.message.toLowerCase();
     let streamingStateChanged = false;
 
-    if (msgText.includes("stream iniciado") || msgText.includes("stream já estava ativo")) {
-        if (!appState.isStreaming() || msgText.includes("stream iniciado")) { 
+    if (msgText.includes("stream started") || msgText.includes("stream was already active")) {
+        if (!appState.isStreaming() || msgText.includes("stream started")) { 
             appState.resetChunkCounter(); // Reset counter only if it *just* started or wasn't streaming
         }
         appState.setStreaming(true);
         streamingStateChanged = true;
-    } else if (msgText.includes("stream parado") || msgText.includes("stream já estava parado")) {
+    } else if (msgText.includes("stream stopped") || msgText.includes("stream was already stopped")) {
         if (appState.isStreaming()) { 
              appState.setStreaming(false);
              streamingStateChanged = true;
@@ -179,6 +179,27 @@ function sendStopStreamRequest() {
     ui.updateStreamControlUI(appState.isStreaming(), wsService.isConnected(), appState.getChunkCounter());
 }
 
+
+/**
+ * Registers the Service Worker for PWA functionality.
+ */
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+        });
+    } else {
+        console.log('Service Worker is not supported by this browser.');
+    }
+}
+
+
 // --- Application Initialization ---
 
 // This function runs once the DOM is fully loaded.
@@ -193,6 +214,9 @@ function initializeApp() {
     // Set initial UI state for controls (mostly disabled until connected)
     ui.updateStreamControlUI(false, false, 0); 
     ui.loadVarsConfigBtnEl.disabled = true;
+
+    // Register the service worker for PWA offline capabilities
+    registerServiceWorker();
 
     // Attempt to connect to the WebSocket server
     wsService.connect(); 

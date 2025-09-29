@@ -1,4 +1,4 @@
-// js/appState.js
+// client/js/appState.js
 
 /**
  * Manages the shared client-side application state.

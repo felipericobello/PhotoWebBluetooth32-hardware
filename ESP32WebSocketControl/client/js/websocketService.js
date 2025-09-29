@@ -1,4 +1,4 @@
-// js/websocketService.js
+// client/js/websocketService.js
 
 /**
  * Manages the WebSocket connection, message sending, and routing received messages.
