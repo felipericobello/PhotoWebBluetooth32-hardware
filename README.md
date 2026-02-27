@@ -12,9 +12,9 @@ O PWB32 é um sistema photogate de seis canais de baixo custo, desenvolvido para
 
 Este repositório está organizado nas seguintes pastas:
 
-*   **`/eletronica`**: Contém os esquemas do circuito, layout da PCB (se aplicável) e a lista de componentes (BOM) detalhada.
-*   **`/modelagem-3d`**: Inclui os arquivos STL e, possivelmente, os arquivos de projeto (ex: Fusion 360, OpenSCAD) para os cabeçotes dos sensores photogate e a caixa de acondicionamento do ESP32.
-*   **`/documentacao`**: Apresenta diagramas de montagem, fotos do sistema finalizado e qualquer outra documentação relevante para a construção.
+*   **`/PCB`**: Contém os esquemas do circuito, layout da PCB (se aplicável) e a lista de componentes (BOM) detalhada.
+*   **`/STL`**: Inclui os arquivos STL e, possivelmente, os arquivos de projeto (ex: Fusion 360, OpenSCAD) para os cabeçotes dos sensores photogate e a caixa de acondicionamento do ESP32.
+*   **`/DOCS`**: Apresenta diagramas de montagem, fotos do sistema finalizado e qualquer outra documentação relevante para a construção.
 
 ---
 
@@ -42,14 +42,14 @@ Para montar uma unidade completa de 6 canais do PhotoWebBluetooth32, você preci
 
 O firmware padrão do PhotoWebBluetooth32 espera que os sensores photogate sejam conectados aos seguintes pinos analógicos do ESP32:
 
-| Canal | Pino ESP32 (ADC) | Função | Observações |
+| Canal | Pino ESP32 (ADC) | Função |
 | :--- | :--- | :--- | :--- |
-| Canal 1 | GPIO 32 | Sensor Photogate 1 | Recomendado para ADC1 |
-| Canal 2 | GPIO 33 | Sensor Photogate 2 | Recomendado para ADC1 |
-| Canal 3 | GPIO 34 | Sensor Photogate 3 | Somente entrada (ADC1) |
-| Canal 4 | GPIO 35 | Sensor Photogate 4 | Somente entrada (ADC1) |
-| Canal 5 | GPIO 36 (VP) | Sensor Photogate 5 | Somente entrada (ADC1) |
-| Canal 6 | GPIO 39 (VN) | Sensor Photogate 6 | Somente entrada (ADC1) |
+| Canal 1 | GPIO 34 | Sensor Photogate 1 |
+| Canal 2 | GPIO 35 | Sensor Photogate 2 |
+| Canal 3 | GPIO 32 | Sensor Photogate 3 |
+| Canal 4 | GPIO 33 | Sensor Photogate 4 | 
+| Canal 5 | GPIO 25 | Sensor Photogate 5 | 
+| Canal 6 | GPIO 26 | Sensor Photogate 6 |
 
 **Diagrama Básico do Sensor Photogate:**
 
@@ -57,13 +57,13 @@ Cada sensor photogate consiste em um LED infravermelho e um fototransistor. O fo
 
 Quando um objeto passa e bloqueia o feixe IR, o fototransistor para de conduzir, e a tensão no pino ADC sobe (ou desce, dependendo da configuração). O firmware detecta essa mudança para registrar o evento.
 
-Para o esquema detalhado e layout da PCB, consulte a pasta `/eletronica`.
+Para o esquema detalhado e layout da PCB, consulte a pasta `/PCB`.
 
 ---
 
 ## 📐 Montagem Física
 
-1.  **Impressão 3D:** Imprima todas as peças estruturais (`cabeçotes`, `caixa_controle`) utilizando os arquivos STL fornecidos em `/modelagem-3d`. Recomenda-se PLA ou ABS para durabilidade.
+1.  **Impressão 3D:** Imprima todas as peças estruturais (`cabeçotes`, `caixa_controle`) utilizando os arquivos STL fornecidos em `/STL`. Recomenda-se PETG ou ABS para durabilidade.
 2.  **Montagem da Eletrônica:**
     *   Soldar os resistores e o fototransistor para cada cabeçote de sensor.
     *   Montar o circuito de condicionamento de sinal (se houver) em uma protoboard ou PCB.
